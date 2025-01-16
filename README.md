@@ -25,8 +25,8 @@ This project is a simple user management application built with Node.js and Neo4
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/yourusername/neo4j-nodejs-user-management.git
-   cd neo4j-nodejs-user-management
+   git clone https://github.com/rachitkum/neo4j_nodejs.git
+   cd neo4j_nodejs
 
 2. **Install dependencies:**
    ```bash
