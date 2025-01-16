@@ -7,8 +7,11 @@ This project is a simple user management application built with Node.js and Neo4
 - Add new users with ID, name, location, and age.
 - View a list of all users.
 ## Screenshots
-![Alt text](sceenshots/neo4j3.PNG)
+![Alt graph db](sceenshots/neo4j.PNG)
 
+![Alt table db](sceenshots/neo4j2.PNG)
+
+![Alt home page](sceenshots/neo4j3.PNG)
 
 ## Technologies Used
 
