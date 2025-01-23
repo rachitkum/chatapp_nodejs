@@ -30,6 +30,7 @@ router.post('/join', authenticateUser , async (req, res) => {
     await User.findByIdAndUpdate(userId, { $addToSet: { groups: groupId } });
     res.status(200).json({ message: 'User  joined the group' });
 });
+
 // message
 router.post('/message', authenticateUser , async (req, res) => {
     const { groupId, text } = req.body;
@@ -57,11 +58,9 @@ router.get('/:groupId/messages', authenticateUser , async (req, res) => {
             .sort({ createdAt: 1 });
 
         if (!messages || messages.length === 0) {
-            console.log('No messages found for this group.');
             return res.status(404).json({ message: 'No messages found for this group.' });
         }
 
-        console.log('Fetched messages:', messages);
         res.status(200).json(messages);
     } catch (error) {
         console.error('Error fetching messages:', error);//show error when no messages are there
