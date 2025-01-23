@@ -17,9 +17,9 @@ A real-time chat application built using Node.js, Express, and Socket.IO. This a
 - **Database**: MongoDB
 
 ## Screenshots
-![main page](screenshots\chat1.PNG)
+![main page](screenshots/chat1.PNG)
 
-![schema](screenshots\chat2.PNG)
+![schema](screenshots/chat2.PNG)
 
 ## Installation
 
