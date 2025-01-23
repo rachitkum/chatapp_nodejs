@@ -1,0 +1,246 @@
+<html>
+<head>
+    <title>Chat Application</title>
+    <style>
+        body {
+            display: flex;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        #chatContainer {
+            flex: 1;
+            padding: 20px;
+            margin-right: 310px; 
+        }
+        #messageSlider {
+            width: 300px;
+            height: 100%;
+            background: #fff;
+            position: fixed;
+            right: 0;
+            top: 0;
+            border-left: 1px solid #ccc;
+            padding: 15px;
+            overflow-y: auto;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        #userInfo, #groupList, #messages {
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 10px;
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+        .error {
+            color: red;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div id="chatContainer">
+        <h1>Chat Room</h1>
+
+        <div id="userInfo">
+            <strong>User:</strong> <span id="usernameDisplay"></span> (<span id="userIdDisplay"></span>)
+        </div>
+
+        <div id="groupList">
+            <strong>Joined Groups:</strong>
+            <select id="groupSelect">
+                <option value="">Select a group</option>
+            </select>
+            <button id="loadMessagesButton">Load Messages</button>
+        </div>
+
+        <div>
+            <input type="text" id="groupIdInput" placeholder="Enter Group ID to Join">
+            <button id="joinGroupButton">Join Group</button>
+        </div>
+        <div>
+            <input type="text" id="groupNameInput" placeholder="Enter Group Name to Create">
+            <button id="createGroupButton">Create Group</button>
+        </div>
+
+        <div id="messages"></div>
+
+        <div>
+            <input type="text" id="messageInput" placeholder="Type a message">
+            <button id="sendMessageButton">Send</button>
+        </div>
+
+        <div id="errorMessage" class="error"></div>
+
+
+        <div id="currentGroupId">
+            <strong>Current Group ID:</strong> <span id="currentGroupIdDisplay">None</span>
+        </div>
+    </div>
+
+    <div id="messageSlider">
+        <h2>Group Messages</h2>
+        <div id="sliderMessages"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let currentGroupId = null; 
+        const token = localStorage.getItem('token');
+        const userId = localStorage.getItem('userId'); 
+        const username = localStorage.getItem('username');
+
+        document.getElementById('usernameDisplay').textContent = username;
+        document.getElementById('userIdDisplay').textContent = userId;
+
+        async function fetchJoinedGroups() {
+            const response = await fetch(`/api/group/user/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const groups = await response.json();
+            const groupSelect = document.getElementById('groupSelect');
+            groups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group._id;
+                option.textContent = group.name;
+                groupSelect.appendChild(option);
+            });
+        }
+
+        async function loadMessages(groupId) {
+            const response = await fetch(`/api/group/${groupId}/messages`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                console.error('Failed to load messages:', response.statusText);
+                displayError('Error loading messages.');
+                return;
+            }
+
+            const messages = await response.json();
+            const sliderMessagesDiv = document.getElementById('sliderMessages');
+            sliderMessagesDiv.innerHTML = ''; 
+
+            messages.forEach(message => {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message';
+                const date = new Date(message.createdAt);
+                messageElement.textContent = `${message.sender.username} [${date.toLocaleString()}]: ${message.text}`;
+                sliderMessagesDiv.appendChild(messageElement);
+            });
+        }
+
+        document.getElementById('loadMessagesButton').addEventListener('click', async () => {
+            const selectedGroupId = document.getElementById('groupSelect').value;
+            if (!selectedGroupId) {
+                displayError('Please select a group to load messages.');
+                return;
+            }
+            currentGroupId = selectedGroupId;
+            document.getElementById('currentGroupIdDisplay').textContent = currentGroupId; 
+            await loadMessages(selectedGroupId); 
+        });
+
+        document.getElementById('joinGroupButton').addEventListener('click', async () => {
+            const groupId = document.getElementById('groupIdInput').value;
+            if (!groupId) {
+                displayError('Please enter a valid Group ID.');
+                return;
+            }
+            currentGroupId = groupId; 
+            document.getElementById('currentGroupIdDisplay').textContent = currentGroupId; 
+            socket.emit('joinGroup', groupId);
+            await loadMessages(groupId);
+        });
+
+        document.getElementById('createGroupButton').addEventListener('click', async () => {
+            const groupName = document.getElementById('groupNameInput').value;
+            if (!groupName) {
+                displayError('Please enter a valid Group Name.');
+                return;
+            }
+            const response = await fetch('/api/group/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ name: groupName, userId })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                currentGroupId = result.groupId; 
+                document.getElementById('currentGroupIdDisplay').textContent = currentGroupId; 
+                socket.emit('joinGroup', currentGroupId);
+                await loadMessages(currentGroupId);
+            } else {
+                console.error('Error creating group:', result.message);
+                displayError(result.message || 'Error creating group.');
+            }
+        });
+
+        document.getElementById('sendMessageButton').addEventListener('click', async () => {
+            const message = document.getElementById('messageInput').value;
+            if (!message) {
+                displayError('Please enter a message to send.');
+                return;
+            }
+            socket.emit('sendMessage', { groupId: currentGroupId, userId, message });
+            await loadMessages(currentGroupId);
+            document.getElementById('messageInput').value = '';
+        });
+
+        socket.on('newMessage', (message) => {
+            const sliderMessagesDiv = document.getElementById('sliderMessages');
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            const date = new Date(message.createdAt);
+            messageElement.textContent = `${message.sender.username} [${date.toLocaleString()}]: ${message.text}`;
+            sliderMessagesDiv.appendChild(messageElement);
+        });
+
+        function displayError(message) {
+            const errorMessageDiv = document.getElementById('errorMessage');
+            errorMessageDiv.textContent = message;
+            setTimeout(() => {
+                errorMessageDiv.textContent = ''; 
+            }, 3000);
+        }
+
+        fetchJoinedGroups();
+    </script>
+
+</body>
+</html>
